@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Küp Hareketi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #222;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #container {
+            position: relative;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        #data {
+            color: #fff;
+            font-size: 20px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #data p {
+            margin: 5px;
+        }
+
+        #data span {
+            font-weight: bold;
+            color: #00FF00;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="data">
+            <p>X: <span id="xValue">0</span></p>
+            <p>Y: <span id="yValue">0</span></p>
+            <p>Z: <span id="zValue">0</span></p>
+        </div>
+        <canvas id="webglCanvas"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const socket = new WebSocket('ws://localhost:8765');  
+
+        let rotationX = 0, rotationY = 0, rotationZ = 0;
+
+        socket.onopen = function(event) {
+            console.log('WebSocket Bağlantısı Başladı!');
+        };
+
+        socket.onmessage = function(event) {
+            const data = event.data.split(',');
+            if (data.length === 3) {
+                rotationX = parseFloat(data[0]);
+                rotationY = parseFloat(data[1]);
+                rotationZ = parseFloat(data[2]);
+
+                document.getElementById('xValue').innerText = rotationX.toFixed(2);
+                document.getElementById('yValue').innerText = rotationY.toFixed(2);
+                document.getElementById('zValue').innerText = rotationZ.toFixed(2);
+            }
+        };
+
+        socket.onerror = function(error) {
+            console.error("WebSocket Hatası:", error);
+        };
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webglCanvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x00ff00,
+            emissive: 0x444444,
+            roughness: 0.3,
+            metalness: 0.7
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        const light = new THREE.PointLight(0xFFFFFF, 1, 100);
+        light.position.set(10, 10, 10);
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        camera.position.z = 5;
+
+        let speedFactor = 1.5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            cube.rotation.x = rotationX * Math.PI / 180 * speedFactor;
+            cube.rotation.y = rotationY * Math.PI / 180 * speedFactor;
+            cube.rotation.z = rotationZ * Math.PI / 180 * speedFactor;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+    </script>
+
+</body>
+</html>
